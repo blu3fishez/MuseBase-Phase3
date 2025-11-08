@@ -13,7 +13,7 @@ git clone https://github.com/DBProjectTeam15/Phase3
 
 - For IntelliJ users
 
-You can run `Main` function by opening this project.
+Simply, you just open the project folder as root. And you can run `Main` function by opening this project.
 
 - For Eclipse users 
 
