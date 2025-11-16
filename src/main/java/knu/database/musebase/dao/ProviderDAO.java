@@ -26,53 +26,33 @@ public class ProviderDAO extends BasicDataAccessObjectImpl<Provider, Long> {
     @Override
     public Provider save(Provider entity) {
         String sql = "INSERT INTO PROVIDERS (Provider_name, Provider_link) VALUES (?, ?)";
-        Connection connection = null;
 
-        try {
-            connection = getConnection();
-            connection.setAutoCommit(false);
+        try (Connection connection = getConnection();
 
-            try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                pstmt.setString(1, entity.getName()); // Provider_name
-                pstmt.setString(2, entity.getLink()); // Provider_link
+            PreparedStatement pstmt = connection.prepareStatement(sql, new String[] { "PROVIDER_ID" })) {
 
-                int affectedRows = pstmt.executeUpdate();
-                if (affectedRows == 0) {
-                    throw new SQLException("Creating provider failed, no rows affected.");
-                }
+            pstmt.setString(1, entity.getName());
+            pstmt.setString(2, entity.getLink());
 
-                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        long id = generatedKeys.getLong(1); // 생성된 Provider_id
-                        connection.commit(); // 트랜잭션 성공
+            int affectedRows = pstmt.executeUpdate();
 
-                        // (가정) ID가 포함된 새 객체 반환
-                        return new Provider(id, entity.getName(), entity.getLink());
-                    } else {
-                        throw new SQLException("Creating provider failed, no ID obtained.");
-                    }
+            if (affectedRows == 0) {
+                throw new SQLException("Creating provider failed, no rows affected.");
+            }
+
+            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    long id = generatedKeys.getLong(1);
+
+                    return new Provider(id, entity.getName(), entity.getLink());
+                } else {
+                    throw new SQLException("Creating provider failed, no ID obtained.");
                 }
             }
+
         } catch (SQLException ex) {
             log.error("Error saving provider: " + ex.getMessage(), ex);
-            if (connection != null) {
-                try {
-                    connection.rollback(); // 트랜잭션 롤백
-                    log.info("Transaction rolled back for provider save.");
-                } catch (SQLException e) {
-                    log.error("Error during transaction rollback: " + e.getMessage(), e);
-                }
-            }
             return null;
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.setAutoCommit(true); // 커넥션 풀 반환 전 상태 복원
-                    connection.close();
-                } catch (SQLException e) {
-                    log.error("Error closing connection: " + e.getMessage(), e);
-                }
-            }
         }
     }
 
@@ -116,6 +96,25 @@ public class ProviderDAO extends BasicDataAccessObjectImpl<Provider, Long> {
             // 오류 발생 시 null 대신 비어있는 리스트 반환
         }
         return providers;
+    }
+
+    public long deleteById(long id) {
+        String sql = "DELETE FROM PROVIDERS WHERE PROVIDER_ID = ?";
+
+        try (Connection connection = getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
+
+
+            pstmt.setLong(1, id);
+
+
+            return pstmt.executeUpdate();
+
+        } catch (SQLException ex) {
+
+            log.error("Error deleting provider by id {}: {}", id, ex.getMessage(), ex);
+            return 0;
+        }
     }
 
     /**
