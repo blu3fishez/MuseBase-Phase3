@@ -27,53 +27,35 @@ public class ArtistDAO extends BasicDataAccessObjectImpl<Artist, Long> {
     @Override
     public Artist save(Artist entity) {
         String sql = "INSERT INTO ARTISTS (Name, Gender) VALUES (?, ?)";
-        Connection connection = null;
 
-        try {
-            connection = getConnection();
-            connection.setAutoCommit(false);
+        try (Connection connection = getConnection();
 
-            try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                pstmt.setString(1, entity.getName()); // Name
-                pstmt.setString(2, entity.getGender()); // Gender
+             // Oracle은 이렇게 해야 가져올 수 생성된 키 값을 가져올 수 있음.
+             PreparedStatement pstmt = connection.prepareStatement(sql, new String[] { "Artist_id" })) {
 
-                int affectedRows = pstmt.executeUpdate();
-                if (affectedRows == 0) {
-                    throw new SQLException("Creating artist failed, no rows affected.");
-                }
+            pstmt.setString(1, entity.getName());
+            pstmt.setString(2, entity.getGender());
 
-                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        long id = generatedKeys.getLong(1); // 생성된 Artist_id
-                        connection.commit();
+            int affectedRows = pstmt.executeUpdate();
 
-                        // (가정) ID가 포함된 새 객체 반환
-                        return new Artist(id, entity.getName(), entity.getGender());
-                    } else {
-                        throw new SQLException("Creating artist failed, no ID obtained.");
-                    }
+            if (affectedRows == 0) {
+                throw new SQLException("Creating artist failed, no rows affected.");
+            }
+
+            // 생성된 키 (Artist_id)를 가져옴
+            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    long id = generatedKeys.getLong(1); // 생성된 Artist_id
+
+                    return new Artist(id, entity.getName(), entity.getGender());
+                } else {
+                    throw new SQLException("Creating artist failed, no ID obtained.");
                 }
             }
+
         } catch (SQLException ex) {
             log.error("Error saving artist: " + ex.getMessage(), ex);
-            if (connection != null) {
-                try {
-                    connection.rollback();
-                    log.info("Transaction rolled back for artist save.");
-                } catch (SQLException e) {
-                    log.error("Error during transaction rollback: " + e.getMessage(), e);
-                }
-            }
             return null;
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.setAutoCommit(true);
-                    connection.close();
-                } catch (SQLException e) {
-                    log.error("Error closing connection: " + e.getMessage(), e);
-                }
-            }
         }
     }
 
