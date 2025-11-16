@@ -1,0 +1,12 @@
+package knu.database.musebase.data;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor
+public class Artist {
+    private long id;
+    private String name;
+    private String gender;
+}
