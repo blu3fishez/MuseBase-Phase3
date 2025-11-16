@@ -1,7 +1,7 @@
 package knu.database.musebase.domain.manager.dao;
 
 import knu.database.musebase.dao.BasicDataAccessObjectImpl;
-import knu.database.musebase.domain.manager.entity.SongRequest;
+import knu.database.musebase.domain.manager.data.SongRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -85,60 +85,22 @@ public class SongRequestDAO extends BasicDataAccessObjectImpl<SongRequest, Long>
         }
     }
 
-    /**
-     * ID를 기준으로 요청을 삭제합니다.
-     * 반환 타입이 SongRequest이므로, 삭제 전에 먼저 조회하여 객체를 확보한 후 삭제를 수행합니다.
-     */
-    public SongRequest deleteById(Long id) {
-        // 1. 먼저 삭제할 대상이 있는지 조회
-        Optional<SongRequest> targetOptional = findById(id);
-        if (targetOptional.isEmpty()) {
-            log.warn("Delete failed. SongRequest not found with id: {}", id);
-            return null; // 삭제할 대상이 없음
-        }
-        SongRequest target = targetOptional.get();
-
+    public long deleteById(Long id) {
         String sql = "DELETE FROM SONG_REQUESTS WHERE request_id = ?";
-        Connection connection = null;
 
-        try {
-            connection = getConnection();
-            connection.setAutoCommit(false); // 트랜잭션 시작
+        // try-with-resources 구문을 사용하여 Connection과 PreparedStatement를 자동으로 닫습니다.
+        try (Connection connection = getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
 
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setLong(1, id);
-                int affectedRows = pstmt.executeUpdate();
+            pstmt.setLong(1, id);
 
-                if (affectedRows == 0) {
-                    // findById에서는 찾았는데, 그 사이에 삭제된 경우
-                    throw new SQLException("Delete failed. No rows affected for id: " + id);
-                }
-            }
-
-            connection.commit(); // 2. 삭제 성공 시 커밋
-            log.info("Successfully deleted SongRequest with id: {}", id);
-            return target; // 3. 삭제된 객체 반환
+            // executeUpdate()는 쿼리에 의해 영향을 받은 행의 수를 반환합니다.
+            return pstmt.executeUpdate();
 
         } catch (SQLException ex) {
             log.error("Error deleting song request with id {}: {}", id, ex.getMessage(), ex);
-            if (connection != null) {
-                try {
-                    connection.rollback(); // 4. 오류 시 롤백
-                    log.info("Transaction rolled back for deleteById.");
-                } catch (SQLException e) {
-                    log.error("Error during transaction rollback: " + e.getMessage(), e);
-                }
-            }
-            return null;
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.setAutoCommit(true);
-                    connection.close();
-                } catch (SQLException e) {
-                    log.error("Error closing connection: " + e.getMessage(), e);
-                }
-            }
+            // 오류 발생 시 0을 반환
+            return 0;
         }
     }
 
@@ -213,7 +175,6 @@ public class SongRequestDAO extends BasicDataAccessObjectImpl<SongRequest, Long>
         }
         return requests;
     }
-
 
     /**
      * ResultSet의 현재 행을 SongRequest 객체로 매핑하는 헬퍼 메서드
