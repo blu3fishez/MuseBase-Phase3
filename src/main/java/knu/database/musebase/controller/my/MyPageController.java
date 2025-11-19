@@ -6,7 +6,6 @@ import knu.database.musebase.console.PageKey;
 import knu.database.musebase.console.PageController;
 import knu.database.musebase.crypto.PasswordEncryptor;
 import knu.database.musebase.dao.UserDAO;
-import knu.database.musebase.dao.manager.SongRequestDAO;
 import knu.database.musebase.data.User;
 import knu.database.musebase.exception.InvalidLoginStateException;
 import knu.database.musebase.service.CommentService;
@@ -19,6 +18,7 @@ import java.sql.SQLException;
 public class MyPageController implements PageController<PageKey> {
 
     private final SessionWrapper sessionWrapper;
+    private final AuthService authService;
     private final PlaylistService playlistService;
     private final CommentService commentService;
     private final PasswordEncryptor passwordEncryptor;
@@ -92,6 +92,7 @@ public class MyPageController implements PageController<PageKey> {
 
                 try {
                     userDAO.update(new User(user.getUserId(), commands[1], user.getPassword(), user.getEmail()));
+                    sessionWrapper.updateSession(authService.login(user.getEmail(), user.getPassword()));
                     System.out.println("닉네임이 변경되었습니다. : " + commands[1]);
                 }
                 catch (SQLException ex) {
